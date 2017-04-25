@@ -85,6 +85,13 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   // NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
   //   implement this method and use it as a helper during the updateWeights phase.
 
+  // predicted: Predicted measurements between one particale and all landmarks within sensor range
+  // observations: Actual landmark measruements gathered from lidar
+
+  // nearest neighbor search
+
+  // assign each senser observation a map landmark id associated with it
+
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -100,7 +107,37 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   //   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account 
   //   for the fact that the map's y-axis actually points downwards.)
   //   http://planning.cs.uiuc.edu/node99.html
+
+  // - predict measurements to map landmarks within sensor range for each particle
+  // - use dataAssociation
+  // - update weights
+  // - normalize weights?
+
+  /*
+  for (int i=0; i<num_particles; i++) {
+    Particle p = particles[i];
+
+    // loop over observations
+
+      // transform coordinate systems
+      float x_obs_trans = p.x * cos(p.theta) + p.y * sin(p.theta) + x_obs;
+      float y_obs_trans = p.x * sin(p.theta) + p.y * cos(p.theta) + y_obs;
+
+    // get coordinates of closets landmark
+    float x_lm = ;
+    float y_lm = ;
+
+    // update weights using mult-variate Gaussian distribution
+    float normalizer = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
+    float first_exp  = pow(x_obs_trans - x_lm, 2)/ pow(std_landmark[0], 2);
+    float second_exp = pow(y_obs_trams - y_lm, 2)/ pow(std_landmark[1], 2);
+    p.weight = normalizer * exp(-(first_exp + second_exp));
+  }
+  */
+  // TODO: normalize all weights (maybe not even necessary since discrete_distribution could handle that)
 }
+
+
 
 void ParticleFilter::resample() {
   // Resample particles with replacement with probability proportional to their weight.
