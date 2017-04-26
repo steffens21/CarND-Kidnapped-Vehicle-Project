@@ -21,6 +21,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // Add random Gaussian noise to each particle.
   // NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
+  cout << " ++ in init" << endl;
+
   num_particles = 10; // Try more later
 
   // Random Gaussian noise
@@ -42,8 +44,11 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     p.theta = theta + n_theta;
     p.weight = 1;
     particles.push_back(p);
+
+    cout << "   *** particle " << p.id << " initialized to " << p.x << "\t" << p.y << "\t" << p.theta << endl;
   }
 
+  is_initialized = true;
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
@@ -52,13 +57,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   //  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
   //  http://www.cplusplus.com/reference/random/default_random_engine/
 
+  cout << " ++ in prediction" << endl;
+
   // Random Gaussian noise distributions
   default_random_engine gen;
   normal_distribution<double> N_x(0, std_pos[0]);
   normal_distribution<double> N_y(0, std_pos[1]);
   normal_distribution<double> N_theta(0, std_pos[2]);
 
-  for (int i=0; i<num_particles; i++) {
+  for (int i=0; i < num_particles; i++) {
     Particle p = particles[i];
 
     // make some noise
@@ -76,6 +83,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
     p.x += n_x;
     p.y += n_y;
     p.theta += yaw_rate * delta_t + n_theta;
+
+    cout << "   *** particle " << p.id << " is now at " << p.x << "\t" << p.y << "\t" << p.theta << endl;
   }
 }
 
@@ -88,10 +97,29 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   // predicted: Predicted measurements between one particale and all landmarks within sensor range
   // observations: Actual landmark measruements gathered from lidar
 
-  // nearest neighbor search
+  cout << " ++ in dataAssociation" << endl;
 
-  // assign each senser observation a map landmark id associated with it
-
+  // Nearest neighbor search
+  // This is O( m*n ) where m = size of predicted and n = size of observations.
+  for (int j = 0; j < predicted.size(); j++) {
+    LandmarkObs pred = predicted[j];
+    float min_dist = -1;
+    float min_id = -1;
+    //cout << "  ** pred lm id " << pred.id << endl;
+    for (int k = 0; k < observations.size(); k++) {
+      LandmarkObs obs = observations[k];
+      float dist_to_lm = dist(obs.x, obs.y, pred.x, pred.y);
+      //cout << "obs lm id " << obs.id << endl;
+      //cout << "distance " << dist_to_lm << endl;
+      if (min_id == -1 or dist_to_lm < min_dist) {
+	min_id = obs.id;
+	min_dist = dist_to_lm;
+      }
+    }
+    // set the id of predicted landmark to the id of the closet map landmark
+    pred.id = min_id;
+    //cout << "  ** post pred lm id " << pred.id << endl;
+  }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -113,28 +141,75 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // - update weights
   // - normalize weights?
 
-  /*
-  for (int i=0; i<num_particles; i++) {
+  // TODO: what to use sensor_range for?
+  // TODO: Can I ignore std_landmark since it has been applied to the given observations already?  Maybe use it on the map??
+
+  cout << " ++ in updateWeights" << endl;
+
+  // Remember the sum of all weights for normalization
+  float sum_weight = 0.0;
+  
+  for (int i=0; i < num_particles; i++) {
     Particle p = particles[i];
 
     // loop over observations
+    std::vector<LandmarkObs> observations_trans;
+    for (int j = 0; j < observations.size(); ++j) {
+      LandmarkObs obs = observations[j];
+      LandmarkObs obs_trans;
+
+      obs_trans.id = -1;
 
       // transform coordinate systems
-      float x_obs_trans = p.x * cos(p.theta) + p.y * sin(p.theta) + x_obs;
-      float y_obs_trans = p.x * sin(p.theta) + p.y * cos(p.theta) + y_obs;
+      obs_trans.x = p.x * cos(p.theta) + p.y * sin(p.theta) + obs.x;
+      obs_trans.y = p.x * sin(p.theta) + p.y * cos(p.theta) + obs.y;
 
-    // get coordinates of closets landmark
-    float x_lm = ;
-    float y_lm = ;
+      observations_trans.push_back(obs_trans);
+    }
 
-    // update weights using mult-variate Gaussian distribution
-    float normalizer = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
-    float first_exp  = pow(x_obs_trans - x_lm, 2)/ pow(std_landmark[0], 2);
-    float second_exp = pow(y_obs_trams - y_lm, 2)/ pow(std_landmark[1], 2);
-    p.weight = normalizer * exp(-(first_exp + second_exp));
+    std::vector<LandmarkObs> landmarks_in_range;
+    for (int k = 0; k < map_landmarks.landmark_list.size(); ++k) {
+      Map::single_landmark_s lm = map_landmarks.landmark_list[k];
+      float dist_particle_to_lm = dist(p.x, p.y, lm.x_f, lm.y_f);
+      if (dist_particle_to_lm < sensor_range) {
+	LandmarkObs in_range_lm;
+	in_range_lm.id = lm.id_i;
+	in_range_lm.x = lm.x_f;
+	in_range_lm.y = lm.y_f;
+	landmarks_in_range.push_back(in_range_lm);
+      }
+    }
+
+    cout << "Nbr. of landmark in range " << landmarks_in_range.size() << endl;
+    cout << "Nbr. of observations " << observations_trans.size() << endl;
+    //cout << observations_trans << endl;
+    //cout << landmarks_in_range << endl;
+    dataAssociation(observations_trans, landmarks_in_range);
+
+    float new_weight = 1;
+    for (int j = 0; j < observations_trans.size(); ++j) {
+      // get coordinates of closets landmark
+      LandmarkObs obs = observations_trans[j];
+      LandmarkObs closets_lm = landmarks_in_range[obs.id];
+      float x_lm = closets_lm.x;
+      float y_lm = closets_lm.y;
+
+      // update weights using mult-variate Gaussian distribution
+      float normalizer = 1 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
+      float first_exp  = pow(obs.x - x_lm, 2)/ pow(std_landmark[0], 2);
+      float second_exp = pow(obs.y - y_lm, 2)/ pow(std_landmark[1], 2);
+      new_weight *= normalizer * exp(-(first_exp + second_exp));
+    }
+    p.weight = new_weight;
+
+    sum_weight += new_weight;
   }
-  */
-  // TODO: normalize all weights (maybe not even necessary since discrete_distribution could handle that)
+
+  // normalize all weights (maybe not even necessary since discrete_distribution could handle that)
+  for (int i=0; i < num_particles; i++) {
+    Particle p = particles[i];
+    p.weight = p.weight / sum_weight;
+  } 
 }
 
 
@@ -143,6 +218,9 @@ void ParticleFilter::resample() {
   // Resample particles with replacement with probability proportional to their weight.
   // NOTE: You may find std::discrete_distribution helpful here.
   //   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+
+  cout << " ++ in resample" << endl;
+  
   random_device rd;
   mt19937 gen(rd());
   discrete_distribution<> d(weights.begin(), weights.end());
