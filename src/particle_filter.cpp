@@ -20,7 +20,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   // Add random Gaussian noise to each particle.
   // NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-  num_particles = 2000;
+  num_particles = 1000;
 
   // Random Gaussian noise
   default_random_engine gen;
@@ -123,6 +123,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
   // Remember the sum of all weights for normalization
   float sum_weight = 0.0;
+  float normalizer = 1.0 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
 
   for (int i=0; i < num_particles; i++) {
     Particle &p = particles[i];
@@ -175,7 +176,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       float y_lm = closets_lm.y;
 
       // update weights using mult-variate Gaussian distribution
-      float normalizer = 1.0 / (2 * M_PI * std_landmark[0] * std_landmark[1]);
       float first_exp  = pow(obs.x - x_lm, 2) / pow(std_landmark[0], 2);
       float second_exp = pow(obs.y - y_lm, 2) / pow(std_landmark[1], 2);
       new_weight *= normalizer * exp(-(first_exp + second_exp));
@@ -184,7 +184,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     sum_weight += new_weight;
   }
 
-  // normalize all weights (maybe not even necessary since discrete_distribution could handle that)
+  // normalize all weights (maybe not strictly necessary since discrete_distribution could handle that)
   bool low_weight = false;
   for (int i=0; i < num_particles; i++) {
     Particle &p = particles[i];
