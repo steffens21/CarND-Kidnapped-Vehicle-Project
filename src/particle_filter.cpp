@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
-#include <random>
 
 #include "particle_filter.h"
 
@@ -161,12 +160,17 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       // get coordinates of closets landmark
       LandmarkObs obs = observations_trans[j];
       LandmarkObs closets_lm;
+      bool lm_found = false;
       for (int k = 0; k < landmarks_in_range.size(); k++) {
 	if (landmarks_in_range[k].id == obs.id) {
 	  closets_lm = landmarks_in_range[k];
+	  lm_found = true;
 	}
       }
-      // TODO: error out if above search fails
+      if (!lm_found) {
+	cout << "Warning: Closest landmark with id " << obs.id << " caanot be found." << endl;
+	continue;
+      }
       float x_lm = closets_lm.x;
       float y_lm = closets_lm.y;
 
@@ -211,9 +215,9 @@ void ParticleFilter::resample() {
   mt19937 gen(rd());
   discrete_distribution<> d(weights.begin(), weights.end());
   std::vector<Particle> new_particles;
-  for(int i=0; i < num_particles; i++) {
+  for (int i=0; i < num_particles; i++) {
     int chosen = d(gen);
-    new_particles.push_back( particles[chosen] );
+    new_particles.push_back(particles[chosen]);
   }
   particles = new_particles;
 }
