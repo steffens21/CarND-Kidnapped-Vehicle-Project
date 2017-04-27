@@ -23,7 +23,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
   //cout << " ++ in init" << endl;
 
-  num_particles = 500; // Try more later
+  num_particles = 15000; // 10000; // Try more later
 
   // Random Gaussian noise
   default_random_engine gen;
@@ -48,7 +48,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     //also initialize weights vector
     weights.push_back(p.weight);
 
-    cout << "   *** particle " << p.id << " initialized to " << p.x << "\t" << p.y << "\t" << p.theta << endl;
+    //cout << "   *** particle " << p.id << " initialized to " << p.x << "\t" << p.y << "\t" << p.theta << endl;
   }
   //cout << "    === weights vector after init " << weights[0] << endl;
 
@@ -71,7 +71,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
   std::vector<Particle> moved_particles;  
   for (int i=0; i < num_particles; i++) {
-    Particle p = particles[i];
+    Particle &p = particles[i];
 
     // make some noise
     double n_x = N_x(gen);
@@ -89,10 +89,10 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
     p.y += n_y;
     p.theta += yaw_rate * delta_t + n_theta;
 
-    moved_particles.push_back(p);
+    //moved_particles.push_back(p);
     //cout << "   *** particle " << p.id << " is now at " << p.x << "\t" << p.y << "\t" << p.theta << endl;
   }
-  particles = moved_particles;
+  //particles = moved_particles;
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
@@ -109,7 +109,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
   // Nearest neighbor search
   // This is O( m*n ) where m = size of predicted and n = size of observations.
   for (int j = 0; j < observations.size(); j++) {
-    LandmarkObs obs = observations[j];
+    LandmarkObs &obs = observations[j];
     float min_dist = -1;
     float min_id = -1;
     for (int k = 0; k < predicted.size(); k++) {
@@ -125,7 +125,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
     // set the id of observed landmark to the id of the closet map landmark
     obs.id = min_id;
     //cout << "  ** post pred lm id " << obs.id << endl;
-    observations[j] = obs;
+    //observations[j] = obs;
   }
 }
 
@@ -157,7 +157,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   float sum_weight = 0.0;
 
   for (int i=0; i < num_particles; i++) {
-    Particle p = particles[i];
+    Particle &p = particles[i];
 
     // loop over observations
     std::vector<LandmarkObs> observations_trans;
@@ -168,8 +168,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       obs_trans.id = -1;
 
       // transform coordinate systems
-      obs_trans.x = p.x * cos(p.theta) + p.y * sin(p.theta) + obs.x;
-      obs_trans.y = p.x * sin(p.theta) + p.y * cos(p.theta) + obs.y;
+      obs_trans.x = obs.x * cos(p.theta) - obs.y * sin(p.theta) + p.x;
+      obs_trans.y = obs.x * sin(p.theta) + obs.y * cos(p.theta) + p.y;
+      //cout << "p: " << p.x << " " << p.y << " " << p.theta << "\tobs: " << obs.x << " " << obs.y << "\tobs_trans: " << obs_trans.x << " " << obs_trans.y << endl;
 
       observations_trans.push_back(obs_trans);
     }
@@ -214,7 +215,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       new_weight *= normalizer * exp(-(first_exp + second_exp));
     }
     p.weight = new_weight;
-    particles[i] = p;  
+    //particles[i] = p;  
     //cout << "  == new weight (not normalized) of p " << p.id << ": " << new_weight << endl;
 
     sum_weight += new_weight;
@@ -223,15 +224,15 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   // normalize all weights (maybe not even necessary since discrete_distribution could handle that)
   bool low_weight = false;
   for (int i=0; i < num_particles; i++) {
-    Particle p = particles[i];
-    if (sum_weight < 0.000000001) {
+    Particle &p = particles[i];
+    if (sum_weight < 0.0000000001) {
       p.weight = 1.0 / float(num_particles);
       low_weight = true;
     } else {
       p.weight = p.weight / sum_weight;
     }
     weights[i] = p.weight;
-    particles[i] = p;
+    //particles[i] = p;
   }
 
   if (low_weight) {
@@ -259,6 +260,11 @@ void ParticleFilter::resample() {
     new_particles.push_back( particles[chosen] );
   }
   particles = new_particles;
+  /*cout << "Resample: ";
+  for (int i = 0; i<particles.size(); i++) {
+    cout << particles[i].id << " ";
+  }
+  cout << endl;*/
 }
 
 void ParticleFilter::write(std::string filename) {
